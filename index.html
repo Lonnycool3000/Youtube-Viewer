@@ -130,6 +130,25 @@
       cursor: pointer;
       display: none; /* Standardmäßig ausblenden */
     }
+
+    .error-message {
+      color: red; /* Rote Farbe für Fehlermeldungen */
+    }
+
+    .loader {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top: 4px solid #4CAF50;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -138,7 +157,10 @@
       <h1>YouTube Playlist ohne Werbung ansehen</h1>
       <input type="text" id="playlist-url" placeholder="YouTube-Playlist-URL eingeben" />
       <button onclick="loadPlaylist()">Playlist Laden</button>
+      <div id="loader" class="loader" style="display:none;"></div> <!-- Loader anzeigen -->
       <div id="playlist-info"></div>
+      <div id="error-message" class="error-message"></div> <!-- Bereich für Fehlermeldungen -->
+      <div id="video-count"></div> <!-- Anzahl der geladenen Videos anzeigen -->
     </div>
     <div class="right-panel">
       <div id="video-player"></div>
@@ -152,90 +174,104 @@
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
+    let player; // Youtube-Player
+    let videoIds = []; // Array für Video-IDs
+    let currentVideoIndex = 0; // Aktueller Video-Index
+    let isDarkMode = true; // Dunkelmodus aktiv
     const apiKey = 'AIzaSyB3FM0lIklHxh4-J52-q_kilA22L-Lfr8g'; // Hier den API-Schlüssel einfügen
-    let currentVideoIndex = 0;
-    let videoIds = [];
-    let player; // Globale Variable für den Player
-    let isDarkMode = true; // Standardmäßig im Dunkelmodus
-    let isUserInteracted = false; // Flag für Benutzerinteraktion
 
-    async function loadPlaylist() {
-      const urlInput = document.getElementById('playlist-url').value;
-      const playlistId = extractPlaylistId(urlInput);
+    function loadPlaylist() {
+      const playlistUrl = document.getElementById('playlist-url').value; // Playlist-URL abrufen
+      const playlistId = extractPlaylistId(playlistUrl); // Playlist-ID extrahieren
+      console.log("Playlist ID:", playlistId); // Füge dies ein, um die Playlist-ID zu protokollieren
 
       if (!playlistId) {
-        alert("Bitte eine gültige YouTube-Playlist-URL eingeben.");
+        document.getElementById('error-message').innerText = 'Bitte eine gültige Playlist-URL eingeben.';
         return;
       }
 
-      const apiUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=300&playlistId=${playlistId}&key=${apiKey}`;
+      videoIds = []; // Leere die Video-IDs
+      currentVideoIndex = 0; // Setze den aktuellen Video-Index zurück
+      document.getElementById('playlist-info').innerHTML = ''; // Lösche die vorherige Playlist-Info
+      document.getElementById('error-message').innerText = ''; // Lösche vorherige Fehlermeldungen
+      document.getElementById('loader').style.display = 'block'; // Loader anzeigen
 
-      try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error('Fehler beim Abrufen der Playlist');
-        const data = await response.json();
-        displayPlaylistInfo(data);
-      } catch (error) {
-        alert(error.message);
-      }
+      const maxResults = 50; // Maximal 50 Ergebnisse pro Anfrage
+      let nextPageToken = ''; // Initialisiere den nächsten Seiten-Token
+
+      // Hilfsfunktion, um die Playlist zu laden
+      const fetchPlaylistItems = async (nextPageToken) => {
+        const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${maxResults}&playlistId=${playlistId}&key=${apiKey}&pageToken=${nextPageToken}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Fehler beim Abrufen der Playlist'); // Fehler beim Abrufen der Playlist
+        }
+        return response.json();
+      };
+
+      // Wiederholte Anfragen, um alle Videos zu laden
+      const loadAllVideos = async () => {
+        try {
+          let data;
+          do {
+            data = await fetchPlaylistItems(nextPageToken); // Anfrage an die API
+            displayPlaylistInfo(data); // Playlist-Info anzeigen
+            nextPageToken = data.nextPageToken; // Setze den nächsten Seiten-Token
+          } while (nextPageToken); // Solange der nächste Seiten-Token vorhanden ist
+        } catch (error) {
+          console.error(error);
+          document.getElementById('error-message').innerText = error.message; // Fehlermeldung anzeigen
+        } finally {
+          document.getElementById('loader').style.display = 'none'; // Loader ausblenden
+          document.getElementById('video-count').innerText = `Videos geladen: ${videoIds.length}`; // Anzahl der geladenen Videos anzeigen
+        }
+      };
+
+      loadAllVideos(); // Starte das Laden aller Videos
     }
 
     function extractPlaylistId(url) {
-      const regex = /[&?]list=([^&]+)/;
+      const regex = /list=([^&]+)/; // Regulärer Ausdruck zur Extraktion der Playlist-ID
       const match = url.match(regex);
-      return match ? match[1] : null;
+      return match ? match[1] : null; // Playlist-ID zurückgeben oder null
     }
 
     function displayPlaylistInfo(data) {
-      const playlistInfo = document.getElementById('playlist-info');
-      playlistInfo.innerHTML = '';  // Vorherige Ergebnisse löschen
-      videoIds = []; // Leere die Video-IDs
-
-      if (data.items && data.items.length > 0) {
-        data.items.forEach(item => {
-          const videoTitle = item.snippet.title;
-          const videoId = item.snippet.resourceId.videoId;
-          const videoThumbnail = item.snippet.thumbnails.default.url;
-
-          // Video-ID zur Liste hinzufügen
-          videoIds.push(videoId);
-
-          // Erstelle ein neues Video-Element
-          const videoElement = document.createElement('div');
-          videoElement.className = 'video-item';
-          videoElement.innerHTML = `
-            <img src="${videoThumbnail}" alt="Thumbnail" style="cursor:pointer;" onclick="playVideo('${videoId}')">
-            <a href="#" onclick="playVideo('${videoId}')">${videoTitle}</a>
-          `;
-          
-          // Füge das neue Video-Element zur Playlist hinzu
-          playlistInfo.appendChild(videoElement);
-        });
-      } else {
-        playlistInfo.innerHTML = "<p>Keine Videos in dieser Playlist gefunden.</p>";
-      }
+      const playlistInfoElement = document.getElementById('playlist-info');
+      data.items.forEach(item => {
+        const videoId = item.snippet.resourceId.videoId; // Video-ID abrufen
+        const title = item.snippet.title; // Titel abrufen
+        videoIds.push(videoId); // Video-ID zur Liste hinzufügen
+        const thumbnailUrl = item.snippet.thumbnails?.default?.url || 'https://via.placeholder.com/100'; // Standard-Thumbnail-URL verwenden, wenn kein Thumbnail vorhanden ist
+        const videoItemElement = document.createElement('div');
+        videoItemElement.className = 'video-item';
+        videoItemElement.innerHTML = `
+          <img src="${thumbnailUrl}" alt="Thumbnail" />
+          <a href="#" onclick="playVideo('${videoId}'); return false;">${title}</a>
+        `;
+        playlistInfoElement.appendChild(videoItemElement); // Video-Element zur Playlist-Info hinzufügen
+      });
     }
 
     function playVideo(videoId) {
-      currentVideoIndex = videoIds.indexOf(videoId); // Aktuellen Videoindex setzen
-      loadYouTubePlayer(videoId);
+      currentVideoIndex = videoIds.indexOf(videoId); // Den aktuellen Index setzen
+      loadYouTubePlayer(videoId); // Video im Player laden
     }
 
     function loadYouTubePlayer(videoId) {
-      const playerDiv = document.getElementById('video-player');
       if (player) {
-        player.loadVideoById(videoId);
+        player.loadVideoById(videoId); // Video im Player laden
       } else {
         player = new YT.Player('video-player', {
           height: '100%',
           width: '100%',
           videoId: videoId,
           playerVars: {
-            'playsinline': 1,
-            'autoplay': 1, // Video automatisch abspielen
-            'mute': 1, // Video standardmäßig stumm
-            'enablejsapi': 1, // Aktiviert die JS-API
-            'rel': 0, // Keine empfohlenen Videos am Ende
+            'autoplay': 1,
+            'controls': 1,
+            'rel': 0,
+            'showinfo': 0,
+            'mute': 1 // Startet das Video stumm
           },
           events: {
             'onReady': onPlayerReady,
@@ -246,49 +282,39 @@
     }
 
     function onPlayerReady(event) {
-      // Wenn der Benutzer mit der Seite interagiert, aktiviere den Ton
-      document.body.addEventListener('click', () => {
-        if (!isUserInteracted) {
-          event.target.unMute(); // Ton aktivieren
-          event.target.setVolume(50); // Lautstärke setzen
-          document.getElementById('unmute-button').style.display = 'none'; // Button ausblenden
-          isUserInteracted = true; // Benutzerinteraktion als erfolgt markieren
-        }
-      }, { once: true }); // Die Event-Listener werden nur einmal ausgeführt
+      event.target.playVideo(); // Video abspielen, wenn der Player bereit ist
     }
 
     function onPlayerStateChange(event) {
-      // Wenn das Video zu Ende ist, spiele das nächste Video in der Playlist ab
       if (event.data === YT.PlayerState.ENDED) {
         currentVideoIndex++;
         if (currentVideoIndex < videoIds.length) {
-          loadYouTubePlayer(videoIds[currentVideoIndex]);
+          loadYouTubePlayer(videoIds[currentVideoIndex]); // Nächstes Video abspielen
         }
       }
     }
 
     function unmuteVideo() {
       if (player) {
-        player.unMute();
-        player.setVolume(50); // Lautstärke setzen
+        player.unMute(); // Ton aktivieren
         document.getElementById('unmute-button').style.display = 'none'; // Button ausblenden
       }
     }
 
     function toggleMode() {
       const body = document.body;
-      isDarkMode = !isDarkMode; // Modus umschalten
-
+      const modeToggleIcon = document.getElementById('mode-toggle');
+      const sunIcon = document.getElementById('sun-icon');
+      isDarkMode = !isDarkMode; // Modus wechseln
       if (isDarkMode) {
         body.style.backgroundColor = '#121212'; // Dunkelmodus
-        body.style.color = '#ffffff'; // Helle Schriftfarbe
-        document.getElementById('mode-toggle').style.display = 'block'; // Mond-Symbol anzeigen
-        document.getElementById('sun-icon').style.display = 'none'; // Sonne ausblenden
+        modeToggleIcon.style.display = 'block'; // Mond anzeigen
+        sunIcon.style.display = 'none'; // Sonne ausblenden
       } else {
         body.style.backgroundColor = '#ffffff'; // Hellmodus
-        body.style.color = '#000000'; // Dunkle Schriftfarbe
-        document.getElementById('mode-toggle').style.display = 'none'; // Mond ausblenden
-        document.getElementById('sun-icon').style.display = 'block'; // Sonne anzeigen
+        body.style.color = '#000000'; // Schriftfarbe ändern
+        modeToggleIcon.style.display = 'none'; // Mond ausblenden
+        sunIcon.style.display = 'block'; // Sonne anzeigen
       }
     }
   </script>
