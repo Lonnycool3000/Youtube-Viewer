@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Playlist Viewer</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #121212; /* Dunkler Hintergrund */
+      color: #ffffff; /* Helle Schriftfarbe */
+      display: flex;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      display: flex; /* Flexbox für das Layout */
+      width: 100%; /* Volle Breite des Containers */
+      max-width: 1600px; /* Maximale Breite auf 1600px erhöhen */
+      height: 90vh; /* Höhe des Containers */
+    }
+
+    .left-panel {
+      flex: 1; /* Links die gesamte Breite einnehmen */
+      padding: 20px;
+      max-height: 100%; /* Maximale Höhe für die linke Spalte */
+      overflow-y: auto; /* Scrollen aktivieren */
+      border-right: 1px solid #444; /* Trennlinie zwischen den Panels */
+    }
+
+    .right-panel {
+      flex: 1; /* Rechts die gesamte Breite einnehmen */
+      padding: 20px;
+    }
+
+    input, button {
+      margin: 10px 0; /* Vertikaler Abstand */
+      padding: 15px;
+      font-size: 16px;
+      width: 100%; /* Volle Breite */
+      border: 1px solid #444;
+      border-radius: 8px;
+      transition: background-color 0.3s ease; /* Sanfte Animation für Hover */
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #0073e6; /* Blauer Rand bei Fokus */
+      background-color: #333; /* Dunkler Hintergrund bei Fokus */
+    }
+
+    button {
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #playlist-info {
+      margin-top: 20px;
+      text-align: left;
+      max-height: 80vh; /* Maximale Höhe für Playlist-Info erhöhen */
+      overflow-y: auto; /* Scrollen aktivieren, wenn die Höhe überschritten wird */
+      border: 1px solid #444;
+      border-radius: 8px;
+      background-color: #222; /* Dunkler Hintergrund für die Playlist-Info */
+      padding: 10px;
+    }
+
+    .video-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      transition: background-color 0.3s ease; /* Sanfte Animation für Hintergrundfarbe */
+    }
+
+    .video-item:hover {
+      background-color: #333; /* Hover Farbe */
+    }
+
+    .video-item img {
+      width: 100px;
+      height: auto;
+      border-radius: 8px;
+      margin-right: 15px;
+    }
+
+    .video-item a {
+      color: #0073e6;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .video-item a:hover {
+      text-decoration: underline;
+    }
+
+    #video-player {
+      max-width: 100%; /* Vollbreite */
+      aspect-ratio: 16 / 9; /* 16:9 Format */
+      margin-top: 20px; /* Abstand oben für Video-Player */
+      border-radius: 8px;
+      overflow: hidden; /* Ecken abrunden */
+    }
+
+    /* Icons für Moduswechsel */
+    #mode-toggle {
+      position: absolute; /* Bild oben rechts */
+      top: 10px;
+      right: 10px;
+      width: 120px; /* Größe des Mondbildes */
+      cursor: pointer;
+    }
+
+    #sun-icon {
+      position: absolute; /* Bild oben rechts */
+      top: 10px;
+      right: 10px;
+      width: 120px; /* Größe des Sonnenbildes */
+      cursor: pointer;
+      display: none; /* Standardmäßig ausblenden */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <h1>YouTube Playlist ohne Werbung ansehen</h1>
+      <input type="text" id="playlist-url" placeholder="YouTube-Playlist-URL eingeben" />
+      <button onclick="loadPlaylist()">Playlist Laden</button>
+      <div id="playlist-info"></div>
+    </div>
+    <div class="right-panel">
+      <div id="video-player"></div>
+      <button id="unmute-button" onclick="unmuteVideo()" style="display:none;">Ton aktivieren</button> <!-- Button für Ton aktivieren -->
+    </div>
+  </div>
+
+  <!-- Icons für Moduswechsel -->
+  <img id="mode-toggle" src="https://i.postimg.cc/bJpF1NS0/moon.png" alt="Toggle Mode" onclick="toggleMode()" />
+  <img id="sun-icon" src="https://i.postimg.cc/y82M3HTn/sun.png" alt="Sun Icon" style="display: none;" onclick="toggleMode()" />
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    const apiKey = 'AIzaSyB3FM0lIklHxh4-J52-q_kilA22L-Lfr8g'; // Hier den API-Schlüssel einfügen
+    let currentVideoIndex = 0;
+    let videoIds = [];
+    let player; // Globale Variable für den Player
+    let isDarkMode = true; // Standardmäßig im Dunkelmodus
+    let isUserInteracted = false; // Flag für Benutzerinteraktion
+
+    async function loadPlaylist() {
+      const urlInput = document.getElementById('playlist-url').value;
+      const playlistId = extractPlaylistId(urlInput);
+
+      if (!playlistId) {
+        alert("Bitte eine gültige YouTube-Playlist-URL eingeben.");
+        return;
+      }
+
+      const apiUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=300&playlistId=${playlistId}&key=${apiKey}`;
+
+      try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error('Fehler beim Abrufen der Playlist');
+        const data = await response.json();
+        displayPlaylistInfo(data);
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    function extractPlaylistId(url) {
+      const regex = /[&?]list=([^&]+)/;
+      const match = url.match(regex);
+      return match ? match[1] : null;
+    }
+
+    function displayPlaylistInfo(data) {
+      const playlistInfo = document.getElementById('playlist-info');
+      playlistInfo.innerHTML = '';  // Vorherige Ergebnisse löschen
+      videoIds = []; // Leere die Video-IDs
+
+      if (data.items && data.items.length > 0) {
+        data.items.forEach(item => {
+          const videoTitle = item.snippet.title;
+          const videoId = item.snippet.resourceId.videoId;
+          const videoThumbnail = item.snippet.thumbnails.default.url;
+
+          // Video-ID zur Liste hinzufügen
+          videoIds.push(videoId);
+
+          // Erstelle ein neues Video-Element
+          const videoElement = document.createElement('div');
+          videoElement.className = 'video-item';
+          videoElement.innerHTML = `
+            <img src="${videoThumbnail}" alt="Thumbnail" style="cursor:pointer;" onclick="playVideo('${videoId}')">
+            <a href="#" onclick="playVideo('${videoId}')">${videoTitle}</a>
+          `;
+          
+          // Füge das neue Video-Element zur Playlist hinzu
+          playlistInfo.appendChild(videoElement);
+        });
+      } else {
+        playlistInfo.innerHTML = "<p>Keine Videos in dieser Playlist gefunden.</p>";
+      }
+    }
+
+    function playVideo(videoId) {
+      currentVideoIndex = videoIds.indexOf(videoId); // Aktuellen Videoindex setzen
+      loadYouTubePlayer(videoId);
+    }
+
+    function loadYouTubePlayer(videoId) {
+      const playerDiv = document.getElementById('video-player');
+      if (player) {
+        player.loadVideoById(videoId);
+      } else {
+        player = new YT.Player('video-player', {
+          height: '100%',
+          width: '100%',
+          videoId: videoId,
+          playerVars: {
+            'playsinline': 1,
+            'autoplay': 1, // Video automatisch abspielen
+            'mute': 1, // Video standardmäßig stumm
+            'enablejsapi': 1, // Aktiviert die JS-API
+            'rel': 0, // Keine empfohlenen Videos am Ende
+          },
+          events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      }
+    }
+
+    function onPlayerReady(event) {
+      // Wenn der Benutzer mit der Seite interagiert, aktiviere den Ton
+      document.body.addEventListener('click', () => {
+        if (!isUserInteracted) {
+          event.target.unMute(); // Ton aktivieren
+          event.target.setVolume(50); // Lautstärke setzen
+          document.getElementById('unmute-button').style.display = 'none'; // Button ausblenden
+          isUserInteracted = true; // Benutzerinteraktion als erfolgt markieren
+        }
+      }, { once: true }); // Die Event-Listener werden nur einmal ausgeführt
+    }
+
+    function onPlayerStateChange(event) {
+      // Wenn das Video zu Ende ist, spiele das nächste Video in der Playlist ab
+      if (event.data === YT.PlayerState.ENDED) {
+        currentVideoIndex++;
+        if (currentVideoIndex < videoIds.length) {
+          loadYouTubePlayer(videoIds[currentVideoIndex]);
+        }
+      }
+    }
+
+    function unmuteVideo() {
+      if (player) {
+        player.unMute();
+        player.setVolume(50); // Lautstärke setzen
+        document.getElementById('unmute-button').style.display = 'none'; // Button ausblenden
+      }
+    }
+
+    function toggleMode() {
+      const body = document.body;
+      isDarkMode = !isDarkMode; // Modus umschalten
+
+      if (isDarkMode) {
+        body.style.backgroundColor = '#121212'; // Dunkelmodus
+        body.style.color = '#ffffff'; // Helle Schriftfarbe
+        document.getElementById('mode-toggle').style.display = 'block'; // Mond-Symbol anzeigen
+        document.getElementById('sun-icon').style.display = 'none'; // Sonne ausblenden
+      } else {
+        body.style.backgroundColor = '#ffffff'; // Hellmodus
+        body.style.color = '#000000'; // Dunkle Schriftfarbe
+        document.getElementById('mode-toggle').style.display = 'none'; // Mond ausblenden
+        document.getElementById('sun-icon').style.display = 'block'; // Sonne anzeigen
+      }
+    }
+  </script>
+</body>
+</html>
