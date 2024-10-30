@@ -6,10 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouTube Playlist Viewer</title>
   <style>
+    /* Originales CSS beibehalten */
     body {
       font-family: 'Arial', sans-serif;
-      background-color: #121212; /* Dunkler Hintergrund */
-      color: #ffffff; /* Helle Schriftfarbe */
+      background-color: #121212;
+      color: #ffffff;
       display: flex;
       justify-content: center;
       height: 100vh;
@@ -17,39 +18,39 @@
     }
 
     .container {
-      display: flex; /* Flexbox für das Layout */
-      width: 100%; /* Volle Breite des Containers */
-      max-width: 1600px; /* Maximale Breite auf 1600px erhöhen */
-      height: 90vh; /* Höhe des Containers */
+      display: flex;
+      width: 100%;
+      max-width: 1600px;
+      height: 90vh;
     }
 
     .left-panel {
-      flex: 1; /* Links die gesamte Breite einnehmen */
+      flex: 1;
       padding: 20px;
-      max-height: 100%; /* Maximale Höhe für die linke Spalte */
-      overflow-y: auto; /* Scrollen aktivieren */
-      border-right: 1px solid #444; /* Trennlinie zwischen den Panels */
+      max-height: 100%;
+      overflow-y: auto;
+      border-right: 1px solid #444;
     }
 
     .right-panel {
-      flex: 1; /* Rechts die gesamte Breite einnehmen */
+      flex: 1;
       padding: 20px;
     }
 
     input, button {
-      margin: 10px 0; /* Vertikaler Abstand */
+      margin: 10px 0;
       padding: 15px;
       font-size: 16px;
-      width: 100%; /* Volle Breite */
+      width: 100%;
       border: 1px solid #444;
       border-radius: 8px;
-      transition: background-color 0.3s ease; /* Sanfte Animation für Hover */
+      transition: background-color 0.3s ease;
     }
 
     input:focus {
       outline: none;
-      border-color: #0073e6; /* Blauer Rand bei Fokus */
-      background-color: #333; /* Dunkler Hintergrund bei Fokus */
+      border-color: #0073e6;
+      background-color: #333;
     }
 
     button {
@@ -66,11 +67,11 @@
     #playlist-info {
       margin-top: 20px;
       text-align: left;
-      max-height: 80vh; /* Maximale Höhe für Playlist-Info erhöhen */
-      overflow-y: auto; /* Scrollen aktivieren, wenn die Höhe überschritten wird */
+      max-height: 80vh;
+      overflow-y: auto;
       border: 1px solid #444;
       border-radius: 8px;
-      background-color: #222; /* Dunkler Hintergrund für die Playlist-Info */
+      background-color: #222;
       padding: 10px;
     }
 
@@ -81,11 +82,11 @@
       padding: 10px;
       border: 1px solid #444;
       border-radius: 8px;
-      transition: background-color 0.3s ease; /* Sanfte Animation für Hintergrundfarbe */
+      transition: background-color 0.3s ease;
     }
 
     .video-item:hover {
-      background-color: #333; /* Hover Farbe */
+      background-color: #333;
     }
 
     .video-item img {
@@ -107,33 +108,32 @@
     }
 
     #video-player {
-      max-width: 100%; /* Vollbreite */
-      aspect-ratio: 16 / 9; /* 16:9 Format */
-      margin-top: 20px; /* Abstand oben für Video-Player */
+      max-width: 100%;
+      aspect-ratio: 16 / 9;
+      margin-top: 20px;
       border-radius: 8px;
-      overflow: hidden; /* Ecken abrunden */
+      overflow: hidden;
     }
 
-    /* Icons für Moduswechsel */
     #mode-toggle {
-      position: absolute; /* Bild oben rechts */
+      position: absolute;
       top: 10px;
       right: 10px;
-      width: 120px; /* Größe des Mondbildes */
+      width: 120px;
       cursor: pointer;
     }
 
     #sun-icon {
-      position: absolute; /* Bild oben rechts */
+      position: absolute;
       top: 10px;
       right: 10px;
-      width: 120px; /* Größe des Sonnenbildes */
+      width: 120px;
       cursor: pointer;
-      display: none; /* Standardmäßig ausblenden */
+      display: none;
     }
 
     .error-message {
-      color: red; /* Rote Farbe für Fehlermeldungen */
+      color: red;
     }
 
     .loader {
@@ -150,118 +150,228 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    /* Nur neue Styles für das Dropdown */
+    .playlist-dropdown {
+      display: none;
+      position: absolute;
+      width: calc(100% - 40px);
+      background-color: #222;
+      border: 1px solid #444;
+      border-radius: 0 0 8px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+
+    .playlist-dropdown.show {
+      display: block;
+    }
+
+    .playlist-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #444;
+    }
+
+    .playlist-item:hover {
+      background-color: #333;
+    }
+
+    .input-container {
+      position: relative;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="left-panel">
       <h1>YouTube Playlist ohne Werbung ansehen</h1>
-      <input type="text" id="playlist-url" placeholder="YouTube-Playlist-URL eingeben" />
+      <div class="input-container">
+        <input type="text" id="playlist-url" placeholder="YouTube-Playlist-URL eingeben" />
+        <div id="playlist-dropdown" class="playlist-dropdown"></div>
+      </div>
       <button onclick="loadPlaylist()">Playlist Laden</button>
-      <div id="loader" class="loader" style="display:none;"></div> <!-- Loader anzeigen -->
+      <div id="loader" class="loader" style="display:none;"></div>
       <div id="playlist-info"></div>
-      <div id="error-message" class="error-message"></div> <!-- Bereich für Fehlermeldungen -->
-      <div id="video-count"></div> <!-- Anzahl der geladenen Videos anzeigen -->
+      <div id="error-message" class="error-message"></div>
+      <div id="video-count"></div>
     </div>
     <div class="right-panel">
       <div id="video-player"></div>
-      <button id="unmute-button" onclick="unmuteVideo()" style="display:none;">Ton aktivieren</button> <!-- Button für Ton aktivieren -->
+      <button id="unmute-button" onclick="unmuteVideo()" style="display:none;">Ton aktivieren</button>
     </div>
   </div>
 
-  <!-- Icons für Moduswechsel -->
   <img id="mode-toggle" src="https://i.postimg.cc/bJpF1NS0/moon.png" alt="Toggle Mode" onclick="toggleMode()" />
   <img id="sun-icon" src="https://i.postimg.cc/y82M3HTn/sun.png" alt="Sun Icon" style="display: none;" onclick="toggleMode()" />
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
-    let player; // Youtube-Player
-    let videoIds = []; // Array für Video-IDs
-    let currentVideoIndex = 0; // Aktueller Video-Index
-    let isDarkMode = true; // Dunkelmodus aktiv
-    const apiKey = 'AIzaSyB3FM0lIklHxh4-J52-q_kilA22L-Lfr8g'; // Hier den API-Schlüssel einfügen
+    let player;
+    let videoIds = [];
+    let currentVideoIndex = 0;
+    let isDarkMode = true;
+    const apiKey = 'AIzaSyB3FM0lIklHxh4-J52-q_kilA22L-Lfr8g';
 
-    function loadPlaylist() {
-      const playlistUrl = document.getElementById('playlist-url').value; // Playlist-URL abrufen
-      const playlistId = extractPlaylistId(playlistUrl); // Playlist-ID extrahieren
-      console.log("Playlist ID:", playlistId); // Füge dies ein, um die Playlist-ID zu protokollieren
+    // Cookie Funktionen
+    function setCookie(name, value, days) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      const expires = `expires=${date.toUTCString()}`;
+      document.cookie = `${name}=${JSON.stringify(value)};${expires};path=/`;
+    }
+
+    function getCookie(name) {
+      const cookieName = `${name}=`;
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(cookieName)) {
+          try {
+            return JSON.parse(cookie.substring(cookieName.length));
+          } catch {
+            return null;
+          }
+        }
+      }
+      return null;
+    }
+
+    // Dropdown-Funktionen
+    function updateDropdown() {
+      const dropdown = document.getElementById('playlist-dropdown');
+      const playlists = getCookie('savedPlaylists') || [];
+      dropdown.innerHTML = '';
+      playlists.forEach(playlist => {
+        const item = document.createElement('div');
+        item.className = 'playlist-item';
+        item.textContent = playlist.name;
+        item.onclick = () => selectPlaylist(playlist.url);
+        dropdown.appendChild(item);
+      });
+    }
+
+    function selectPlaylist(url) {
+      document.getElementById('playlist-url').value = url;
+      document.getElementById('playlist-dropdown').classList.remove('show');
+      loadPlaylist();
+    }
+
+    // Modifizierte loadPlaylist Funktion
+    async function loadPlaylist() {
+      const playlistUrl = document.getElementById('playlist-url').value;
+      const playlistId = extractPlaylistId(playlistUrl);
+      console.log("Playlist ID:", playlistId);
 
       if (!playlistId) {
         document.getElementById('error-message').innerText = 'Bitte eine gültige Playlist-URL eingeben.';
         return;
       }
 
-      videoIds = []; // Leere die Video-IDs
-      currentVideoIndex = 0; // Setze den aktuellen Video-Index zurück
-      document.getElementById('playlist-info').innerHTML = ''; // Lösche die vorherige Playlist-Info
-      document.getElementById('error-message').innerText = ''; // Lösche vorherige Fehlermeldungen
-      document.getElementById('loader').style.display = 'block'; // Loader anzeigen
+      // Playlist-Namen abrufen und speichern
+      try {
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${apiKey}`);
+        const data = await response.json();
+        if (data.items && data.items[0]) {
+          const playlistName = data.items[0].snippet.title;
+          let playlists = getCookie('savedPlaylists') || [];
+          if (!playlists.some(p => p.url === playlistUrl)) {
+            playlists.push({ url: playlistUrl, name: playlistName });
+            setCookie('savedPlaylists', playlists, 365);
+          }
+        }
+      } catch (error) {
+        console.error('Fehler beim Abrufen des Playlist-Namens:', error);
+      }
 
-      const maxResults = 50; // Maximal 50 Ergebnisse pro Anfrage
-      let nextPageToken = ''; // Initialisiere den nächsten Seiten-Token
+      videoIds = [];
+      currentVideoIndex = 0;
+      document.getElementById('playlist-info').innerHTML = '';
+      document.getElementById('error-message').innerText = '';
+      document.getElementById('loader').style.display = 'block';
 
-      // Hilfsfunktion, um die Playlist zu laden
+      const maxResults = 50;
+      let nextPageToken = '';
+
       const fetchPlaylistItems = async (nextPageToken) => {
         const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=${maxResults}&playlistId=${playlistId}&key=${apiKey}&pageToken=${nextPageToken}`;
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error('Fehler beim Abrufen der Playlist'); // Fehler beim Abrufen der Playlist
+          throw new Error('Fehler beim Abrufen der Playlist');
         }
         return response.json();
       };
 
-      // Wiederholte Anfragen, um alle Videos zu laden
       const loadAllVideos = async () => {
         try {
           let data;
           do {
-            data = await fetchPlaylistItems(nextPageToken); // Anfrage an die API
-            displayPlaylistInfo(data); // Playlist-Info anzeigen
-            nextPageToken = data.nextPageToken; // Setze den nächsten Seiten-Token
-          } while (nextPageToken); // Solange der nächste Seiten-Token vorhanden ist
+            data = await fetchPlaylistItems(nextPageToken);
+            displayPlaylistInfo(data);
+            nextPageToken = data.nextPageToken;
+          } while (nextPageToken);
         } catch (error) {
           console.error(error);
-          document.getElementById('error-message').innerText = error.message; // Fehlermeldung anzeigen
+          document.getElementById('error-message').innerText = error.message;
         } finally {
-          document.getElementById('loader').style.display = 'none'; // Loader ausblenden
-          document.getElementById('video-count').innerText = `Videos geladen: ${videoIds.length}`; // Anzahl der geladenen Videos anzeigen
+          document.getElementById('loader').style.display = 'none';
+          document.getElementById('video-count').innerText = `Videos geladen: ${videoIds.length}`;
         }
       };
 
-      loadAllVideos(); // Starte das Laden aller Videos
+      loadAllVideos();
     }
 
+    // Event Listener für das Dropdown
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('playlist-url');
+      const dropdown = document.getElementById('playlist-dropdown');
+
+      input.addEventListener('focus', () => {
+        updateDropdown();
+        dropdown.classList.add('show');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.remove('show');
+        }
+      });
+    });
+
+    // Restlicher originaler Code bleibt unverändert
     function extractPlaylistId(url) {
-      const regex = /list=([^&]+)/; // Regulärer Ausdruck zur Extraktion der Playlist-ID
+      const regex = /list=([^&]+)/;
       const match = url.match(regex);
-      return match ? match[1] : null; // Playlist-ID zurückgeben oder null
+      return match ? match[1] : null;
     }
 
     function displayPlaylistInfo(data) {
       const playlistInfoElement = document.getElementById('playlist-info');
       data.items.forEach(item => {
-        const videoId = item.snippet.resourceId.videoId; // Video-ID abrufen
-        const title = item.snippet.title; // Titel abrufen
-        videoIds.push(videoId); // Video-ID zur Liste hinzufügen
-        const thumbnailUrl = item.snippet.thumbnails?.default?.url || 'https://via.placeholder.com/100'; // Standard-Thumbnail-URL verwenden, wenn kein Thumbnail vorhanden ist
+        const videoId = item.snippet.resourceId.videoId;
+        const title = item.snippet.title;
+        videoIds.push(videoId);
+        const thumbnailUrl = item.snippet.thumbnails?.default?.url || 'https://via.placeholder.com/100';
         const videoItemElement = document.createElement('div');
         videoItemElement.className = 'video-item';
         videoItemElement.innerHTML = `
           <img src="${thumbnailUrl}" alt="Thumbnail" />
           <a href="#" onclick="playVideo('${videoId}'); return false;">${title}</a>
         `;
-        playlistInfoElement.appendChild(videoItemElement); // Video-Element zur Playlist-Info hinzufügen
+        playlistInfoElement.appendChild(videoItemElement);
       });
     }
 
     function playVideo(videoId) {
-      currentVideoIndex = videoIds.indexOf(videoId); // Den aktuellen Index setzen
-      loadYouTubePlayer(videoId); // Video im Player laden
+      currentVideoIndex = videoIds.indexOf(videoId);
+      loadYouTubePlayer(videoId);
     }
 
     function loadYouTubePlayer(videoId) {
       if (player) {
-        player.loadVideoById(videoId); // Video im Player laden
+        player.loadVideoById(videoId);
       } else {
         player = new YT.Player('video-player', {
           height: '100%',
@@ -272,7 +382,7 @@
             'controls': 1,
             'rel': 0,
             'showinfo': 0,
-            'mute': 1 // Startet das Video stumm
+            'mute': 1
           },
           events: {
             'onReady': onPlayerReady,
@@ -283,22 +393,22 @@
     }
 
     function onPlayerReady(event) {
-      event.target.playVideo(); // Video abspielen, wenn der Player bereit ist
+      event.target.playVideo();
     }
 
     function onPlayerStateChange(event) {
       if (event.data === YT.PlayerState.ENDED) {
         currentVideoIndex++;
         if (currentVideoIndex < videoIds.length) {
-          loadYouTubePlayer(videoIds[currentVideoIndex]); // Nächstes Video abspielen
+          loadYouTubePlayer(videoIds[currentVideoIndex]);
         }
       }
     }
 
     function unmuteVideo() {
       if (player) {
-        player.unMute(); // Ton aktivieren
-        document.getElementById('unmute-button').style.display = 'none'; // Button ausblenden
+        player.unMute();
+        document.getElementById('unmute-button').style.display = 'none';
       }
     }
 
@@ -306,16 +416,16 @@
       const body = document.body;
       const modeToggleIcon = document.getElementById('mode-toggle');
       const sunIcon = document.getElementById('sun-icon');
-      isDarkMode = !isDarkMode; // Modus wechseln
+      isDarkMode = !isDarkMode;
       if (isDarkMode) {
-        body.style.backgroundColor = '#121212'; // Dunkelmodus
-        modeToggleIcon.style.display = 'block'; // Mond anzeigen
-        sunIcon.style.display = 'none'; // Sonne ausblenden
+        body.style.backgroundColor = '#121212';
+        modeToggleIcon.style.display = 'block';
+        sunIcon.style.display = 'none';
       } else {
-        body.style.backgroundColor = '#ffffff'; // Hellmodus
-        body.style.color = '#000000'; // Schriftfarbe ändern
-        modeToggleIcon.style.display = 'none'; // Mond ausblenden
-        sunIcon.style.display = 'block'; // Sonne anzeigen
+        body.style.backgroundColor = '#ffffff';
+        body.style.color = '#000000';
+        modeToggleIcon.style.display = 'none';
+        sunIcon.style.display = 'block';
       }
     }
   </script>
